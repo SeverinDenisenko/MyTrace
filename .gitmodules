@@ -1,0 +1,9 @@
+[submodule "deps/Algebra3D"]
+	path = deps/Algebra3D
+	url = https://github.com/severin-denisenko/Algebra3D.git
+[submodule "deps/PAMImage"]
+	path = deps/PAMImage
+	url = https://github.com/severin-denisenko/PAMImage.git
+[submodule "deps/SLib"]
+	path = deps/SLib
+	url = https://github.com/severin-denisenko/SLib.git
