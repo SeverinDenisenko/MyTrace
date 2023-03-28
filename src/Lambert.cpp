@@ -5,7 +5,7 @@
 #include "Lambert.h"
 #include "Random.hpp"
 
-Ray Lambert::Scatter([[maybe_unused]] const Ray& in, const Hit& hit, Color& attenuation) const {
+Ray Lambert::Scatter([[maybe_unused]] const Ray& in, const Hit& hit, Color& attenuation) {
     auto direction = randomInHemisphere(hit.normal);
     attenuation = albedo;
     return Ray(hit.point, direction);
@@ -13,8 +13,6 @@ Ray Lambert::Scatter([[maybe_unused]] const Ray& in, const Hit& hit, Color& atte
 
 
 Vec3 Lambert::randomVectorInUnitSphere(){
-    static Random random;
-
     while (true){
         Vec3 res = {random.Get(), random.Get(), random.Get()};
 

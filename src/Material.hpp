@@ -13,7 +13,7 @@ class Hit;
 
 class Material {
 public:
-    virtual Ray Scatter(const Ray& in, const Hit& hit, Color& attenuation) const = 0;
+    virtual Ray Scatter(const Ray& in, const Hit& hit, Color& attenuation) = 0;
 
     virtual ~Material() = default;
 };

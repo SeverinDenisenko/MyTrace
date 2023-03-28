@@ -7,17 +7,20 @@
 
 #include "Material.hpp"
 #include "Color.h"
+#include "Random.hpp"
 
 class Lambert : public Material{
 public:
     explicit Lambert(Color albedo);
 
-    Ray Scatter(const Ray &in, const Hit &hit, Color& attenuation) const override;
+    Ray Scatter(const Ray &in, const Hit &hit, Color& attenuation) override;
 
     Color albedo;
 private:
-    static Vec3 randomVectorInUnitSphere();
-    static Vec3 randomInHemisphere(const Vec3& normal);
+    Random random;
+
+    Vec3 randomVectorInUnitSphere();
+    Vec3 randomInHemisphere(const Vec3& normal);
 };
 
 

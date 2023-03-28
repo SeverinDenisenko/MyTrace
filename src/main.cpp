@@ -1,4 +1,5 @@
 #include <cmath>
+#include <future>
 
 #include <PAMImage/PPM.hpp>
 #include <SLib/SLog.hpp>
@@ -10,6 +11,7 @@
 #include "Random.hpp"
 #include "Color.h"
 #include "Lambert.h"
+#include "Metal.hpp"
 
 Color rayColor(const Ray& ray, const Scene& scene, int depth){
     if (depth == 0){
@@ -33,62 +35,81 @@ Color rayColor(const Ray& ray, const Scene& scene, int depth){
 
 int main() {
     S_LOG_LEVEL_INFO;
-    S_INFO("Start rendering...");
 
     std::size_t width = 512;
     std::size_t height = 256;
     auto aspect = double(width) / double(height);
 
-    const int samples = 100;
-    const int depth = 25;
+    const int samples = 256;
+    const int depth = 10;
+    const int threads = 7;
 
     auto material1 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.0));
     auto material2 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.8));
-    auto material3 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.0));
+    auto material3 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.8));
+
+    auto material4 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5));
 
     Camera camera(2.0, 2.0 / aspect, 1.0);
     Scene scene;
-    scene.Add(std::make_shared<Sphere>(Vec3(0,0,-3), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-3), 1, material2));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,0,-3), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-3), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-3), 1, material2));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-3), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-3), 1000, material3));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,0,-4), 1, material4));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-4), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,0,-4), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-4), 1, material4));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-4), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-4), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-4), 1000, material3));
 
     pam::PPM ppm(width, height, pam::PPM::Max16);
 
-    Random random;
+    std::vector<std::future<void>> tasks;
 
+    S_INFO("Start rendering...");
     for (std::size_t i = 0; i < width; ++i) {
-        S_INFO("Done: " + std::to_string(double(i) * 100.0 / (width - 1)) + "%");
+        if ((i + 1) % threads == 0){
+            while (!tasks.empty()){
+                tasks.back().wait();
+                tasks.pop_back();
+            }
+        }
 
-        for (std::size_t j = 0; j < height; ++j) {
-            Color color;
-            for (int k = 0; k < samples; ++k) {
-                auto u = (i + random.Get()) / (width - 1);
-                auto v = (j + random.Get()) / (height - 1);
+        tasks.emplace_back(std::async(std::launch::async, [i, height, width, &camera, &scene, &ppm](){
+            Random random;
 
-                Ray ray = camera.getRay(u, v);
-                color += rayColor(ray, scene, depth);
+            for (std::size_t j = 0; j < height; ++j) {
+                Color color;
+                for (int k = 0; k < samples; ++k) {
+                    auto u = (i + random.Get()) / (width - 1);
+                    auto v = (j + random.Get()) / (height - 1);
+
+                    Ray ray = camera.getRay(u, v);
+                    color += rayColor(ray, scene, depth);
+                }
+
+                auto scale = 1.0 / samples;
+                color.i = sqrt(scale * color.i);
+                color.j = sqrt(scale * color.j);
+                color.k = sqrt(scale * color.k);
+
+                auto r = static_cast<std::uint16_t>(color.i * pam::PPM::Max16);
+                auto g = static_cast<std::uint16_t>(color.j * pam::PPM::Max16);
+                auto b = static_cast<std::uint16_t>(color.k * pam::PPM::Max16);
+
+                ppm(j, i) = {r, g, b};
             }
 
-            auto scale = 1.0 / samples;
-            color.i = sqrt(scale * color.i);
-            color.j = sqrt(scale * color.j);
-            color.k = sqrt(scale * color.k);
-
-            auto r = static_cast<std::uint16_t>(color.i * pam::PPM::Max16);
-            auto g = static_cast<std::uint16_t>(color.j * pam::PPM::Max16);
-            auto b = static_cast<std::uint16_t>(color.k * pam::PPM::Max16);
-
-            ppm(j, i) = {r, g, b};
-        }
+            S_INFO("Done: " + std::to_string(i));
+        }));
     }
 
-    ppm.Write("out.ppm");
+    while (!tasks.empty()){
+        tasks.back().wait();
+        tasks.pop_back();
+    }
 
     S_INFO("End rendering...");
+
+    ppm.Write("out.ppm");
 
     return 0;
 }
