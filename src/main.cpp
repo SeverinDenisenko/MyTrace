@@ -40,22 +40,23 @@ int main() {
     std::size_t height = 256;
     auto aspect = double(width) / double(height);
 
-    const int samples = 256;
-    const int depth = 10;
-    const int threads = 7;
+    const int samples = 512;
+    const int depth = 3;
+    const int threads = 8;
 
     auto material1 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.0));
     auto material2 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.8));
     auto material3 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.8));
 
-    auto material4 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5));
+    auto material4 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5), 0);
+    auto material5 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5), 0.5);
 
     Camera camera(2.0, 2.0 / aspect, 1.0);
     Scene scene;
     scene.Add(std::make_shared<Sphere>(Vec3(0,0,-4), 1, material4));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-4), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-4), 1, material5));
     scene.Add(std::make_shared<Sphere>(Vec3(2,0,-4), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-4), 1, material4));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-4), 1, material5));
     scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-4), 1, material2));
     scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-4), 1, material1));
     scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-4), 1000, material3));
@@ -71,6 +72,8 @@ int main() {
                 tasks.back().wait();
                 tasks.pop_back();
             }
+
+            S_INFO("Done: " + std::to_string(double(i) * 100 / (width - 1)) + "%");
         }
 
         tasks.emplace_back(std::async(std::launch::async, [i, height, width, &camera, &scene, &ppm](){
@@ -97,8 +100,6 @@ int main() {
 
                 ppm(j, i) = {r, g, b};
             }
-
-            S_INFO("Done: " + std::to_string(i));
         }));
     }
 

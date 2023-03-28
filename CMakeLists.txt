@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 project(MyTrace)
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
 
 add_subdirectory(deps/Algebra3D)
 include_directories(deps/Algebra3D/include)
