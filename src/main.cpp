@@ -8,41 +8,22 @@
 #include "Sphere.hpp"
 #include "Scene.h"
 #include "Random.hpp"
-
-using Color = algebra::Vec3;
-
-Vec3 randomVectorInUnitSphere(){
-    static Random random;
-
-    while (true){
-        Vec3 res = {random.Get(), random.Get(), random.Get()};
-
-        if (res.norm() < 1)
-            return res;
-    }
-}
-
-Vec3 randomInHemisphere(const Vec3& normal){
-    Vec3 r = randomVectorInUnitSphere();
-
-    if (dot(r, normal) > 0.0)
-        return r;
-    else
-        return -r;
-}
+#include "Color.h"
+#include "Lambert.h"
 
 Color rayColor(const Ray& ray, const Scene& scene, int depth){
-    if (depth <= 0){
+    if (depth == 0){
         Vec3 unit_direction = (ray.direction).unit();
         double t = 0.5*(unit_direction.j + 1.0);
         return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
 
     Hit hit = scene.Hit(ray, 0.0001, std::numeric_limits<double>::infinity());
+    Color attenuation;
 
     if (hit) {
-        Vec3 target = hit.point + randomInHemisphere(hit.normal);
-        return 0.5 * rayColor(Ray(hit.point, target - hit.point), scene, depth - 1);
+        auto scattered = hit.material->Scatter(ray, hit, attenuation);
+        return attenuation * rayColor(scattered, scene, depth - 1);
     } else {
         Vec3 unit_direction = (ray.direction).unit();
         double t = 0.5*(unit_direction.j + 1.0);
@@ -54,22 +35,26 @@ int main() {
     S_LOG_LEVEL_INFO;
     S_INFO("Start rendering...");
 
-    std::size_t width = 256;
+    std::size_t width = 512;
     std::size_t height = 256;
     auto aspect = double(width) / double(height);
 
     const int samples = 100;
     const int depth = 25;
 
+    auto material1 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.0));
+    auto material2 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.8));
+    auto material3 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.0));
+
     Camera camera(2.0, 2.0 / aspect, 1.0);
     Scene scene;
-    scene.Add(std::make_shared<Sphere>(Vec3(0,0,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,0,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-3), 1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-3), 1000));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,0,-3), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-3), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,0,-3), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-3), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-3), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-3), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-3), 1000, material3));
 
     pam::PPM ppm(width, height, pam::PPM::Max16);
 

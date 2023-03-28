@@ -5,6 +5,7 @@
 #include "Sphere.hpp"
 
 #include <cmath>
+#include <utility>
 
 class Hit Sphere::Hit(const Ray& r, double min, double max) {
     class Hit res;
@@ -32,10 +33,12 @@ class Hit Sphere::Hit(const Ray& r, double min, double max) {
     res.point = r.At(res.t);
     res.normal = (res.point - center) / radius;
     res.hit = true;
+    res.material = material;
 
     return res;
 }
 
-Sphere::Sphere(Vec3 center, double radius) : center(center), radius(radius) {
+Sphere::Sphere(Vec3 center, double radius, std::shared_ptr<Material> material) :
+center(center), radius(radius), material(std::move(material)) {
 
 }
