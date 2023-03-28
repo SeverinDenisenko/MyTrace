@@ -15,15 +15,11 @@ using algebra::Vec3;
 
 class Camera {
 public:
-    Camera(double viewportWidth, double viewportHeight, double focalLength);
+    Camera(Vec3 from, Vec3 at, Vec3 up, double fov, double aspect);
 
     Ray getRay(double u, double v) const;
 
 private:
-    double viewportWidth;
-    double viewportHeight;
-    double focalLength = 1.0;
-
     Vec3 origin = {.0, .0, .0};
     Vec3 horizontal;
     Vec3 vertical;

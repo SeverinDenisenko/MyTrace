@@ -15,9 +15,7 @@
 
 Color rayColor(const Ray& ray, const Scene& scene, int depth){
     if (depth == 0){
-        Vec3 unit_direction = (ray.direction).unit();
-        double t = 0.5*(unit_direction.j + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+        return {0, 0, 0};
     }
 
     Hit hit = scene.Hit(ray, 0.0001, std::numeric_limits<double>::infinity());
@@ -36,7 +34,7 @@ Color rayColor(const Ray& ray, const Scene& scene, int depth){
 int main() {
     S_LOG_LEVEL_INFO;
 
-    std::size_t width = 512;
+    std::size_t width = 256;
     std::size_t height = 256;
     auto aspect = double(width) / double(height);
 
@@ -46,34 +44,42 @@ int main() {
 
     auto material1 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.0));
     auto material2 = std::make_shared<Lambert>(Color(0.0, 0.8, 0.8));
-    auto material3 = std::make_shared<Lambert>(Color(0.8, 0.8, 0.8));
+    auto material3 = std::make_shared<Lambert>(Color(0.5, 0.5, 0.5));
 
     auto material4 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5), 0);
     auto material5 = std::make_shared<Metal>(Color(0.5, 0.5, 0.5), 0.5);
 
-    Camera camera(2.0, 2.0 / aspect, 1.0);
+    Camera camera(Vec3(3,5,3), Vec3(0,0,0), Vec3(0,-1,0), 60, aspect);
     Scene scene;
-    scene.Add(std::make_shared<Sphere>(Vec3(0,0,-4), 1, material4));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,0,-4), 1, material5));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,0,-4), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,-2,-4), 1, material5));
-    scene.Add(std::make_shared<Sphere>(Vec3(-2,-2,-4), 1, material2));
-    scene.Add(std::make_shared<Sphere>(Vec3(2,-2,-4), 1, material1));
-    scene.Add(std::make_shared<Sphere>(Vec3(0,1001,-4), 1000, material3));
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,1,0), 1, material1));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,1,0), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,1,0), 1, material3));
+
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,1,2), 1, material4));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,1,2), 1, material5));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,1,2), 1, material1));
+
+    scene.Add(std::make_shared<Sphere>(Vec3(-2,1,-2), 1, material2));
+    scene.Add(std::make_shared<Sphere>(Vec3(0,1,-2), 1, material4));
+    scene.Add(std::make_shared<Sphere>(Vec3(2,1,-2), 1, material5));
+
+    scene.Add(std::make_shared<Sphere>(Vec3(0,-1000,0), 1000, material3));
 
     pam::PPM ppm(width, height, pam::PPM::Max16);
 
     std::vector<std::future<void>> tasks;
 
+    auto waitTasks = [&tasks](){
+        while (!tasks.empty()){
+            tasks.back().wait();
+            tasks.pop_back();
+        }
+    };
+
     S_INFO("Start rendering...");
     for (std::size_t i = 0; i < width; ++i) {
         if ((i + 1) % threads == 0){
-            while (!tasks.empty()){
-                tasks.back().wait();
-                tasks.pop_back();
-            }
-
-            S_INFO("Done: " + std::to_string(double(i) * 100 / (width - 1)) + "%");
+            waitTasks();
         }
 
         tasks.emplace_back(std::async(std::launch::async, [i, height, width, &camera, &scene, &ppm](){
@@ -101,12 +107,11 @@ int main() {
                 ppm(j, i) = {r, g, b};
             }
         }));
+
+        S_INFO("Done: " + std::to_string(double(i) * 100 / (width - 1)) + "%");
     }
 
-    while (!tasks.empty()){
-        tasks.back().wait();
-        tasks.pop_back();
-    }
+    waitTasks();
 
     S_INFO("End rendering...");
 
