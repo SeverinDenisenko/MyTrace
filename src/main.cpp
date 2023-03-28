@@ -1,5 +1,4 @@
 #include <cmath>
-#include <random>
 
 #include <PAMImage/PPM.hpp>
 #include <SLib/SLog.hpp>
@@ -8,12 +7,7 @@
 #include "Ray.hpp"
 #include "Sphere.hpp"
 #include "Scene.h"
-
-inline double random_double() {
-    static std::uniform_real_distribution<double> distribution(0.0, 1.0);
-    static std::mt19937 generator(random());
-    return distribution(generator);
-}
+#include "Random.hpp"
 
 using Color = algebra::Vec3;
 
@@ -50,12 +44,14 @@ int main() {
 
     pam::PPM ppm(width, height, pam::PPM::Max16);
 
+    Random random;
+
     for (std::size_t i = 0; i < width; ++i) {
         for (std::size_t j = 0; j < height; ++j) {
             Color color;
             for (int k = 0; k < samples; ++k) {
-                auto u = (i + random_double()) / (width - 1);
-                auto v = (j + random_double()) / (height - 1);
+                auto u = (i + random.Get()) / (width - 1);
+                auto v = (j + random.Get()) / (height - 1);
 
                 Ray ray = camera.getRay(u, v);
                 color += rayColor(ray, scene);
